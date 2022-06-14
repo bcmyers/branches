@@ -1,8 +1,8 @@
 mod config;
 
-use std::cmp::{self, Ordering};
+use std::cmp::Ordering;
 
-use git2::{BranchType, Repository, RepositoryState};
+use git2::{BranchType, Repository};
 use term::color::{self, Color};
 
 use crate::config::Config;
@@ -13,7 +13,6 @@ const COLOR_B: Color = color::BLUE;
 struct Repo {
     name: String,
     branches: Vec<Branch>,
-    state: RepositoryState,
 }
 
 struct Branch {
@@ -57,30 +56,11 @@ fn main() -> Result<(), anyhow::Error> {
             .to_str()
             .expect("TODO")
             .to_string();
-        repos.push(Repo {
-            name,
-            branches,
-            state: repo.state(),
-        });
+        repos.push(Repo { name, branches });
     }
 
-    let mut len_longest_repo_name = 0;
-    for path in config.repos() {
-        let name = path.file_name().expect("TODO").to_str().expect("TODO");
-        len_longest_repo_name = cmp::max(name.len(), len_longest_repo_name);
-    }
-
-    let mut len_longest_name = 0;
-    for repo in repos.iter() {
-        for branch in &repo.branches {
-            len_longest_name = cmp::max(branch.name.len(), len_longest_name);
-        }
-    }
-
-    const LEN_LONGEST_STATE: usize = 23; // apply-mailbox-or-bebase
-
-    let len = len_longest_repo_name + 5 + len_longest_name + 1 + LEN_LONGEST_STATE;
-    let mut buf = vec![0u8; len];
+    const COLUMNS: usize = 80;
+    let mut buf = vec![0u8; COLUMNS];
     buf.fill(b'-');
     let divider = std::str::from_utf8(&buf[..]).expect("cannot fail");
 
@@ -104,40 +84,9 @@ fn main() -> Result<(), anyhow::Error> {
             write!(t, "|")?;
             t.fg(color)?;
             write!(t, " {}", branch.name)?;
-            for _ in 0..len_longest_name - branch.name.len() {
-                write!(t, " ")?;
-            }
-            if branch.is_head {
-                write!(t, " {}", repo.state.as_str())?;
-            }
             writeln!(t)?;
         }
     }
     t.reset()?;
     Ok(())
-}
-
-trait RepositoryStateExt {
-    fn as_str(&self) -> &'static str;
-}
-
-impl RepositoryStateExt for RepositoryState {
-    #[rustfmt::skip]
-    fn as_str(&self) -> &'static str {
-        use RepositoryState::*;
-        match self {
-            Clean                => "                  clean",
-            Merge                => "                  merge",
-            Revert               => "                 revert",
-            RevertSequence       => "        revert-sequence",
-            CherryPick           => "            cherry-pick",
-            CherryPickSequence   => "    chery-pick-sequence",
-            Bisect               => "                 bisect",
-            Rebase               => "                 rebase",
-            RebaseInteractive    => "     rebase-interactive",
-            RebaseMerge          => "           rebase-merge",
-            ApplyMailbox         => "          apply-mailbox",
-            ApplyMailboxOrRebase => "apply-mailbox-or-rebase",
-        }
-    }
 }
