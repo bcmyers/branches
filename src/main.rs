@@ -70,7 +70,9 @@ fn main() -> Result<(), anyhow::Error> {
             writeln!(t, "{}", divider)?;
         }
         for branch in repo.branches {
-            t.fg(color::WHITE)?;
+            if !branch.is_head && (branch.name == "master" || branch.name == "stable") {
+                continue;
+            }
             let color = if branch.is_head {
                 write!(t, "* ")?;
                 COLOR_A
